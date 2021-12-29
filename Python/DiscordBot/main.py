@@ -1,4 +1,5 @@
 #Harper Bot
+from myQueue import Queue
 import youtube_dl
 import asyncio
 import discord
@@ -11,6 +12,8 @@ intents = discord.Intents.default()
 intents.members = True
 
 client = commands.Bot(command_prefix = '!', intents = intents)
+
+q = Queue()
 
 ytdl_format_options = {
     'format': 'bestaudio/best',
@@ -75,24 +78,25 @@ async def play(ctx, url):
     async with ctx.typing():
         player = await YTDLSource.from_url(url, loop=ctx.bot.loop, stream=True)
         ctx.voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
-    await ctx.send(f'Now playing: {player.title}')
+        q.push(player)
+    await ctx.send(f'Playing song: {player.title}')
 
 @client.command(pass_context = True)
 async def pause(ctx):
     if ctx.voice_client.is_playing():
        ctx.voice_client.pause()
-       await ctx.send(f'Paused song.')
+       await ctx.send(f'Pausing song: {q.peek().title}')
 
 @client.command(pass_context = True)
-async def stop(ctx):
+async def skip(ctx):
     if ctx.voice_client.is_playing():
        ctx.voice_client.stop()
-       await ctx.send(f'Stopped song.')
+       await ctx.send(f'Skipping song: {q.peek().title}')
 
 @client.command(pass_context = True)
 async def resume(ctx):
     if not ctx.voice_client.is_playing():
        ctx.voice_client.resume()
-       await ctx.send(f'Resumed song.')
+       await ctx.send(f'Resuming song: {q.peek().title}')
 
 client.run(my_secret)
