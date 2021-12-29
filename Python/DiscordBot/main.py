@@ -35,9 +35,7 @@ ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 class YTDLSource(discord.PCMVolumeTransformer):
     def __init__(self, source, *, data, volume=0.5):
         super().__init__(source, volume)
-
         self.data = data
-
         self.title = data.get('title')
         self.url = data.get('url')
 
@@ -63,7 +61,7 @@ async def join(ctx):
     channel = ctx.message.author.voice.channel
     await channel.connect()
   else:
-    await ctx.send("You are not in a voice channel.")
+    await ctx.send('You are not in a voice channel.')
 
 @client.command(pass_context = True)
 async def leave(ctx):
@@ -73,11 +71,28 @@ async def leave(ctx):
     await ctx.send('I am not in a voice channel.')
 
 @client.command(pass_context = True)
-async def stream(ctx, url):
+async def play(ctx, url):
     async with ctx.typing():
         player = await YTDLSource.from_url(url, loop=ctx.bot.loop, stream=True)
         ctx.voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
-    
     await ctx.send(f'Now playing: {player.title}')
+
+@client.command(pass_context = True)
+async def pause(ctx):
+    if ctx.voice_client.is_playing():
+       ctx.voice_client.pause()
+       await ctx.send(f'Paused song.')
+
+@client.command(pass_context = True)
+async def stop(ctx):
+    if ctx.voice_client.is_playing():
+       ctx.voice_client.stop()
+       await ctx.send(f'Stopped song.')
+
+@client.command(pass_context = True)
+async def resume(ctx):
+    if not ctx.voice_client.is_playing():
+       ctx.voice_client.resume()
+       await ctx.send(f'Resumed song.')
 
 client.run(my_secret)
