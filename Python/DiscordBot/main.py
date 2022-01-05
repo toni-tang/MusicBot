@@ -1,10 +1,10 @@
 #Harper Bot
-from myQueue import Queue
 import youtube_dl
 import asyncio
 import discord
 import os
 from discord.ext import commands
+from myQueue import Queue
 
 my_secret = os.environ['token']
 
@@ -54,6 +54,28 @@ class YTDLSource(discord.PCMVolumeTransformer):
         return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
 
 
+def my_after(ctx):
+    coro = check_queue(ctx)
+    fut = asyncio.run_coroutine_threadsafe(coro, client.loop)
+    try:
+        fut.result()
+    except:
+        print(f'Error Occured')
+        fut.cancel()
+        pass
+
+
+async def check_queue(ctx):
+    if q.front is None and q.size == 0:
+        return
+    else:
+        q.pop()
+        if q.front is not None and q.size > 0:
+            ctx.voice_client.play(q.peek(), after=lambda e: f'Error Occured {e}'if e else my_after(ctx))
+            await ctx.send(f'Playing song: {q.peek().title}')
+        else:
+            return
+
 @client.event
 async def on_ready():
     print('We have logged in as {0.user}'.format(client))
@@ -77,9 +99,13 @@ async def leave(ctx):
 async def play(ctx, url):
     async with ctx.typing():
         player = await YTDLSource.from_url(url, loop=ctx.bot.loop, stream=True)
-        ctx.voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
-        q.push(player)
-    await ctx.send(f'Playing song: {player.title}')
+        if not ctx.voice_client.is_playing() and q.size == 0:
+            q.push(player)
+            ctx.voice_client.play(q.peek(), after=lambda e: f'Error Occured {e}'if e else my_after(ctx))
+            await ctx.send(f'Playing song: {q.peek().title}')
+        else:
+            q.push(player)
+            await ctx.send(f'Queuing song: {player.title}')                        
 
 @client.command(pass_context = True)
 async def pause(ctx):
@@ -92,11 +118,23 @@ async def skip(ctx):
     if ctx.voice_client.is_playing():
        ctx.voice_client.stop()
        await ctx.send(f'Skipping song: {q.peek().title}')
+       my_after(ctx)
 
 @client.command(pass_context = True)
 async def resume(ctx):
-    if not ctx.voice_client.is_playing():
+    if ctx.voice_client.is_paused():
        ctx.voice_client.resume()
        await ctx.send(f'Resuming song: {q.peek().title}')
+
+@client.command(pass_context = True)
+async def queue(ctx):
+    if q.size > 0:
+        node = q.front
+        await ctx.send(f'Queue: ')
+        while node:
+            await ctx.send(f'{node.data.title}')
+            node = node.next
+    else:
+        await ctx.send(f'Queue is empty.')
 
 client.run(my_secret)
