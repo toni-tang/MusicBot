@@ -51,28 +51,25 @@ class YTDLSource(discord.PCMVolumeTransformer):
             data = data['entries'][0]
 
         filename = data['url'] if stream else ytdl.prepare_filename(data)
-        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
-
+        return cls(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(filename, **ffmpeg_options)), data=data)
 
 def my_after(ctx):
-    coro = check_queue(ctx)
-    fut = asyncio.run_coroutine_threadsafe(coro, client.loop)
+    fut = asyncio.run_coroutine_threadsafe(check_queue(ctx), client.loop)
     try:
         fut.result()
     except:
         print(f'Error Occured')
-        fut.cancel()
         pass
 
-
 async def check_queue(ctx):
-    if q.front is None and q.size == 0:
+    if q.front is None or q.size == 0:
         return
     else:
         q.pop()
         if q.front is not None and q.size > 0:
             ctx.voice_client.play(q.peek(), after=lambda e: f'Error Occured {e}'if e else my_after(ctx))
-            await ctx.send(f'Playing song: {q.peek().title}')
+            embed = discord.Embed(title="Now playing:", description=f'{q.peek().title}', color=discord.Color.blue())
+            await ctx.send(embed=embed)
         else:
             return
 
@@ -97,34 +94,38 @@ async def leave(ctx):
 
 @client.command(pass_context = True)
 async def play(ctx, url):
-    async with ctx.typing():
+    async with ctx.typing(): 
         player = await YTDLSource.from_url(url, loop=ctx.bot.loop, stream=True)
         if not ctx.voice_client.is_playing() and q.size == 0:
             q.push(player)
             ctx.voice_client.play(q.peek(), after=lambda e: f'Error Occured {e}'if e else my_after(ctx))
-            await ctx.send(f'Playing song: {q.peek().title}')
+            embed = discord.Embed(title="Now playing:", description=f'{q.peek().title}', color=discord.Color.blue())
+            await ctx.send(embed=embed)
         else:
             q.push(player)
-            await ctx.send(f'Queuing song: {player.title}')                        
+            embed = discord.Embed(title="Now queuing:", description=f'{player.title}', color=discord.Color.green())
+            await ctx.send(embed=embed)                        
+
+@client.command(pass_context = True)
+async def skip(ctx): 
+    if ctx.voice_client.is_playing():
+        ctx.voice_client.stop()
+        embed = discord.Embed(title="Now skipping:", description=f'{q.peek().title}', color=discord.Color.red())
+        await ctx.send(embed=embed) 
 
 @client.command(pass_context = True)
 async def pause(ctx):
     if ctx.voice_client.is_playing():
-       ctx.voice_client.pause()
-       await ctx.send(f'Pausing song: {q.peek().title}')
-
-@client.command(pass_context = True)
-async def skip(ctx):
-    if ctx.voice_client.is_playing():
-       ctx.voice_client.stop()
-       await ctx.send(f'Skipping song: {q.peek().title}')
-       my_after(ctx)
+        ctx.voice_client.pause()
+        embed = discord.Embed(title="Now pausing:", description=f'{q.peek().title}', color=discord.Color.dark_grey())
+        await ctx.send(embed=embed) 
 
 @client.command(pass_context = True)
 async def resume(ctx):
     if ctx.voice_client.is_paused():
-       ctx.voice_client.resume()
-       await ctx.send(f'Resuming song: {q.peek().title}')
+        ctx.voice_client.resume()
+        embed = discord.Embed(title="Now resuming:", description=f'{q.peek().title}', color=discord.Color.dark_grey())
+        await ctx.send(embed=embed)
 
 @client.command(pass_context = True)
 async def queue(ctx):
@@ -136,5 +137,17 @@ async def queue(ctx):
             node = node.next
     else:
         await ctx.send(f'Queue is empty.')
+
+@client.command(pass_context = True)
+async def volume(ctx, new_volume: float):
+    async with ctx.typing():
+        new_volume = new_volume/100
+        if 0 <= new_volume <= 1.0:
+            ctx.voice_client.source.volume = new_volume
+            embed = discord.Embed(title=f'Volume set to {(int)(new_volume*100)}%', color=discord.Color.dark_grey())
+            await ctx.send(embed=embed)
+        else:
+            embed = discord.Embed(title=f'Volume is out of range', color=discord.Color.dark_grey())
+            await ctx.send(embed=embed)
 
 client.run(my_secret)
