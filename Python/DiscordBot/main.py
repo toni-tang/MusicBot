@@ -164,7 +164,7 @@ async def queue(ctx):
             )
         node = node.next
         while node:
-            embed.add_field(name='\u200b', value=f'{position}. {node.data.title}', inline=False)
+            embed.add_field(name='\u200b', value=f'{position}. [{node.data.title}]({node.data.url})', inline=False)
             node = node.next
             position += 1
         await ctx.send(embed=embed)
@@ -208,8 +208,6 @@ async def help(ctx):
     embed.add_field(name="!resume", value="Resume song.", inline=True)
     embed.add_field(name="!volume", value="Change song's volume.", inline=True)
     embed.add_field(name="!help", value="Displays bot commands.", inline=True)
-    
-
     await ctx.send(embed=embed)
 
 client.run(TOKEN)
