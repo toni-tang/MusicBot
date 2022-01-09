@@ -159,12 +159,15 @@ async def queue(ctx):
         node = q.front
         embed = discord.Embed(
             title = f'Current Song: {node.data.title}', 
-            description = 'Queue:',
             color = discord.Color.dark_grey()
             )
         node = node.next
         while node:
-            embed.add_field(name='\u200b', value=f'{position}. [{node.data.title}]({node.data.url})', inline=False)
+            
+            if position == 1:
+                embed.add_field(name='Queue:', value=f'{position}. [{node.data.title}]({node.data.url})', inline=False)
+            else:
+                embed.add_field(name='\u200b', value=f'{position}. [{node.data.title}]({node.data.url})', inline=False)
             node = node.next
             position += 1
         await ctx.send(embed=embed)
