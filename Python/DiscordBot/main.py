@@ -6,12 +6,13 @@ import os
 from discord.ext import commands
 from myQueue import Queue
 
-my_secret = os.environ['token']
+TOKEN = os.environ['token']
 
 intents = discord.Intents.default()
 intents.members = True
 
 client = commands.Bot(command_prefix = '!', intents = intents)
+client.remove_command("help")
 
 q = Queue()
 
@@ -68,7 +69,11 @@ async def check_queue(ctx):
         q.pop()
         if q.front is not None and q.size > 0:
             ctx.voice_client.play(q.peek(), after=lambda e: f'Error Occured {e}'if e else my_after(ctx))
-            embed = discord.Embed(title="Now playing:", description=f'{q.peek().title}', color=discord.Color.blue())
+            embed = discord.Embed(
+                title = 'Now playing:', 
+                description = f'[{q.peek().title}]({q.peek().url})', 
+                color = discord.Color.blue()
+                )
             await ctx.send(embed=embed)
         else:
             return
@@ -99,44 +104,76 @@ async def play(ctx, url):
         if not ctx.voice_client.is_playing() and q.size == 0:
             q.push(player)
             ctx.voice_client.play(q.peek(), after=lambda e: f'Error Occured {e}'if e else my_after(ctx))
-            embed = discord.Embed(title="Now playing:", description=f'{q.peek().title}', color=discord.Color.blue())
+            embed = discord.Embed(
+                title = 'Now playing:', 
+                description = f'[{q.peek().title}]({q.peek().url})', 
+                color = discord.Color.blue()
+                )
             await ctx.send(embed=embed)
         else:
             q.push(player)
-            embed = discord.Embed(title="Now queuing:", description=f'{player.title}', color=discord.Color.green())
+            embed = discord.Embed(
+                title = 'Now queuing:', 
+                description = f'[{player.title}]({player.url})', 
+                color = discord.Color.green()
+                )
             await ctx.send(embed=embed)                        
 
 @client.command(pass_context = True)
 async def skip(ctx): 
     if ctx.voice_client.is_playing():
         ctx.voice_client.stop()
-        embed = discord.Embed(title="Now skipping:", description=f'{q.peek().title}', color=discord.Color.red())
+        embed = discord.Embed(
+            title = 'Now skipping:', 
+            description = f'[{q.peek().title}]({q.peek().url})', 
+            color = discord.Color.red()
+            )
         await ctx.send(embed=embed) 
 
 @client.command(pass_context = True)
 async def pause(ctx):
     if ctx.voice_client.is_playing():
         ctx.voice_client.pause()
-        embed = discord.Embed(title="Now pausing:", description=f'{q.peek().title}', color=discord.Color.dark_grey())
+        embed = discord.Embed(
+            title = 'Now pausing:', 
+            description = f'[{q.peek().title}]({q.peek().url})', 
+            color = discord.Color.dark_grey()
+            )
         await ctx.send(embed=embed) 
 
 @client.command(pass_context = True)
 async def resume(ctx):
     if ctx.voice_client.is_paused():
         ctx.voice_client.resume()
-        embed = discord.Embed(title="Now resuming:", description=f'{q.peek().title}', color=discord.Color.dark_grey())
+        embed = discord.Embed(
+            title = 'Now resuming:', 
+            description = f'[{q.peek().title}]({q.peek().url})', 
+            color = discord.Color.dark_grey()
+            )
         await ctx.send(embed=embed)
 
 @client.command(pass_context = True)
 async def queue(ctx):
     if q.size > 0:
+        position = 1
         node = q.front
-        await ctx.send(f'Queue: ')
+        embed = discord.Embed(
+            title = f'Current Song: {node.data.title}', 
+            description = 'Queue:',
+            color = discord.Color.dark_grey()
+            )
+        node = node.next
         while node:
-            await ctx.send(f'{node.data.title}')
+            embed.add_field(name='\u200b', value=f'{position}. {node.data.title}', inline=False)
             node = node.next
+            position += 1
+        await ctx.send(embed=embed)
     else:
-        await ctx.send(f'Queue is empty.')
+        embed = discord.Embed(
+            title = 'Queue is empty',
+            color = discord.Color.dark_grey()
+        )
+        await ctx.send(embed=embed)
 
 @client.command(pass_context = True)
 async def volume(ctx, new_volume: float):
@@ -144,10 +181,35 @@ async def volume(ctx, new_volume: float):
         new_volume = new_volume/100
         if 0 <= new_volume <= 1.0:
             ctx.voice_client.source.volume = new_volume
-            embed = discord.Embed(title=f'Volume set to {(int)(new_volume*100)}%', color=discord.Color.dark_grey())
+            embed = discord.Embed(
+                title = f'Volume set to {(int)(new_volume*100)}%', 
+                color = discord.Color.dark_grey()
+                )
             await ctx.send(embed=embed)
         else:
-            embed = discord.Embed(title=f'Volume is out of range', color=discord.Color.dark_grey())
+            embed = discord.Embed(
+                title = f'Volume is out of range', 
+                color = discord.Color.dark_grey()
+                )
             await ctx.send(embed=embed)
 
-client.run(my_secret)
+@client.command(pass_context = True)
+async def help(ctx):
+    embed = discord.Embed(
+        title = 'Bot Commands -',
+        color = discord.Color.dark_grey()
+    )
+    embed.add_field(name="!join", value="Join voice channel.", inline=True)
+    embed.add_field(name="!leave", value="Leave voice channel.", inline=True)
+    embed.add_field(name="!play", value="Play/Queue song.", inline=True)
+    embed.add_field(name="!skip", value="Skip song", inline=True)
+    embed.add_field(name="!queue", value="Check song queue.", inline=True)
+    embed.add_field(name="!pause", value="Pause song.", inline=True)
+    embed.add_field(name="!resume", value="Resume song.", inline=True)
+    embed.add_field(name="!volume", value="Change song's volume.", inline=True)
+    embed.add_field(name="!help", value="Displays bot commands.", inline=True)
+    
+
+    await ctx.send(embed=embed)
+
+client.run(TOKEN)
