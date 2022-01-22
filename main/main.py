@@ -1,4 +1,3 @@
-#Harper Bot
 import youtube_dl
 import asyncio
 import discord
